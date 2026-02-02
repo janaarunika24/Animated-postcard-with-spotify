@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎵 Postcard Maker with Spotify</title>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script&display=swap" rel="stylesheet">
+<style>
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fbc2eb, #a6c1ee);
+  font-family: 'Dancing Script', cursive;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+h1 { margin-bottom: 15px; font-size: 2.5rem; color: #fff; }
+
+.form-container {
+  background: rgba(255,255,255,0.15);
+  border-radius: 15px;
+  padding: 20px;
+  margin-bottom: 25px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  width: 90%;
+  max-width: 600px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+.form-container input, .form-container textarea {
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  font-family: inherit;
+  font-size: 16px;
+  flex: 1 1 45%;
+}
+.form-container textarea { flex: 1 1 100%; resize: none; height: 60px; }
+.form-container button {
+  flex: 1 1 45%;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  font-size: 18px;
+  cursor: pointer;
+  background: #ff6b35;
+  color: #fff;
+  transition: 0.3s;
+}
+.form-container button:hover { background: #ff3b3b; }
+
+.gallery { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+
+.postcard {
+  width: 400px;
+  height: 260px;
+  perspective: 1200px;
+  position: relative;
+  margin: 15px;
+}
+.postcard-inner {
+  width: 100%;
+  height: 100%;
+  transition: transform 1s ease;
+  transform-style: preserve-3d;
+  position: relative;
+  cursor: pointer;
+}
+.postcard.flip .postcard-inner { transform: rotateY(180deg); }
+
+.postcard-front, .postcard-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  backface-visibility: hidden;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.postcard-front { background: #fff; }
+.postcard-front img { width: 100%; height: 100%; object-fit: cover; }
+
+.postcard-back {
+  background: #fdfaf5;
+  transform: rotateY(180deg);
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 23px,
+    rgba(0,0,0,0.1) 24px
+  );
+}
+
+.recipient { font-size: 20px; margin-bottom: 10px; }
+.message { font-size: 18px; white-space: pre-wrap; }
+.signature { text-align: right; font-size: 18px; margin-top: 10px; }
+.spotify-link { font-size: 14px; margin-top: 5px; color: #1DB954; cursor: pointer; }
+
+.card-actions {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  gap: 5px;
+  z-index: 5;
+}
+.card-actions button {
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.card-actions button:hover { background: rgba(0,0,0,0.8); }
+
+.typing { border-right: 2px solid #333; animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { border-color: transparent; } }
+</style>
+</head>
+<body>
+<h1>🎵 Postcard Maker with Spotify</h1>
+
+<div class="form-container">
+  <input type="text" id="recipient" placeholder="Recipient Name">
+  <input type="text" id="sender" placeholder="Your Name">
+  <textarea id="message" placeholder="Your Message"></textarea>
+  <input type="text" id="image" placeholder="Image URL (optional)">
+  <input type="text" id="spotify" placeholder="Spotify Track URL (any song)">
+  <button id="createPostcard">Create Postcard</button>
+</div>
+
+<div class="gallery" id="gallery"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+const gallery = document.getElementById('gallery');
+const createBtn = document.getElementById('createPostcard');
+
+function typeWriter(element, text, speed=40){
+  let i = 0;
+  function typing(){
+    if(i<text.length){
+      element.textContent += text.charAt(i);
+      i++;
+      setTimeout(typing, speed);
+    } else {
+      element.classList.remove("typing");
+    }
+  }
+  typing();
+}
+
+function addPostcard(data){
+  const postcard = document.createElement('div');
+  postcard.className = 'postcard';
+  postcard.innerHTML = `
+    <div class="postcard-inner">
+      <div class="postcard-front">
+        <img src="${data.image}">
+      </div>
+      <div class="postcard-back">
+        <div>
+          <h2 class="recipient">Dear ${data.recipient},</h2>
+          <p class="message typing"></p>
+          ${data.spotify ? `<p class="spotify-link" onclick="window.open('${data.spotify}','_blank')">🎵 Listen on Spotify</p>` : ''}
+        </div>
+        <p class="signature">— ${data.sender}</p>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="download-btn">Download</button>
+      <button class="delete-btn">🗑</button>
+    </div>
+  `;
+
+  const inner = postcard.querySelector('.postcard-inner');
+  inner.addEventListener('click', ()=> postcard.classList.toggle('flip'));
+
+  typeWriter(postcard.querySelector('.message'), data.message);
+
+  postcard.querySelector('.download-btn').addEventListener('click', e=>{
+    e.stopPropagation();
+    html2canvas(inner).then(canvas=>{
+      const link = document.createElement('a');
+      link.download = 'postcard.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  });
+
+  postcard.querySelector('.delete-btn').addEventListener('click', e=>{
+    e.stopPropagation();
+    postcard.remove();
+  });
+
+  gallery.appendChild(postcard);
+}
+
+createBtn.addEventListener('click', ()=>{
+  const recipient = document.getElementById('recipient').value || "Friend";
+  const sender = document.getElementById('sender').value || "Anonymous";
+  const message = document.getElementById('message').value || "Best wishes 🌸";
+  let image = document.getElementById('image').value.trim();
+  if(!image) image = "https://picsum.photos/400/260?grayscale";
+  const spotify = document.getElementById('spotify').value;
+
+  addPostcard({recipient, sender, message, image, spotify});
+
+  document.querySelectorAll('.form-container input, .form-container textarea').forEach(el=>el.value="");
+});
+</script>
+</body>
+</html>  
